@@ -23,9 +23,13 @@ double x_cube = -5, y_cube = 0, z_cube = -5;
 double x_button = -2, y_button = 0, z_button = -3;
 double x_portal = 5, y_portal = 0, z_portal = 5;
 
-bool game_over = false;
+int game_status = 0; // 0 - игра продолжается, 1 - победа, -1 - после 2х минут проигрышь
 
 int Game_space_radius = 5;
+
+void timer(int value) {
+	game_status = -1;
+}
 
 void changeSize(int w, int h) {
 	// предотвращение деления на ноль
@@ -252,7 +256,7 @@ void computePos(float deltaMove)
 	}
 
 	if (x_portal + 1 > x_new && x_new > x_portal - 1 && z_portal + 1 > z_new && z_new > z_portal - 1 && y == y_portal && is_open) {
-		game_over = true;
+		game_status = 1;
 	}
 
 	x = x_new;
@@ -316,20 +320,15 @@ void drawWall(double center = 0) {
 }
 
 void renderScene(void) {
-	if (!game_over) {
+	if (game_status == 0) {
 		if (deltaMove)
 			computePos(deltaMove);
-		//очистить буфер цвета и глубины
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-		// обнулить трансформацию
 		glLoadIdentity();
-		// установить камеру
 		gluLookAt(x, 1.0f, z,
 			x + lx, 1.0f, z + lz,
 			0.0f, 1.0f, 0.0f);
-		// нарисуем "землю"
 		glColor3f(0.9, 1, 0.9);
-		// полигон (plaine)
 		glBegin(GL_QUADS);
 		glVertex3f(-100.0f, 0.0f, -100.0f);
 		glVertex3f(-100.0f, 0.0f, 100.0f);
@@ -337,7 +336,6 @@ void renderScene(void) {
 		glVertex3f(100.0f, 0.0f, -100.0f);
 		glEnd();
 
-		// нарисуем стены
 		drawWall();
 
 		glPushMatrix();
@@ -360,27 +358,46 @@ void renderScene(void) {
 		glutSwapBuffers();
 	}
 
-	else {
+	else if (game_status == 1){
+		
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 		glLoadIdentity();
 		gluLookAt(0, 1.0f, 5,
 			0, 1.0f, 4,
 			0.0f, 1.0f, 0.0f);
-		// установить камеру
-		glColor3f(1.0, 1.0, 1.0); // устанавливаем цвет текста красным
+
+		glColor3f(1.0, 1.0, 1.0); 
 		std::string str = "You W I N!";
 		int i = 0;
 		while (str[i] != '\0') {
-			glRasterPos2f((double)i * 0.2 - 3 + 2, 1.0); // устанавливаем позицию текста
+			glRasterPos2f((double)i * 0.2 - 3 + 2, 1.0); 
 			glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, str[i]);
 
 			++i;
 		}
 
-		// выводим текст "GAME OVER"
 		glutSwapBuffers();
 	}
 
+	else if (game_status == -1) {
+			glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+			glLoadIdentity();
+			gluLookAt(0, 1.0f, 5,
+				0, 1.0f, 4,
+				0.0f, 1.0f, 0.0f);
+
+			glColor3f(1.0, 1.0, 1.0);
+			std::string str = "You L O S E!";
+			int i = 0;
+			while (str[i] != '\0') {
+				glRasterPos2f((double)i * 0.2 - 3 + 2, 1.0);
+				glutBitmapCharacter(GLUT_BITMAP_TIMES_ROMAN_24, str[i]);
+
+				++i;
+			}
+			
+			glutSwapBuffers();
+		}
 }
 
 void processNormalKeys(unsigned char key, int xx, int yy) {
@@ -405,13 +422,10 @@ void releaseKey(int key, int x, int y) {
 
 void mouseMove(int x, int y) {
 
-	// this will only be true when the left button is down
 	if (xOrigin >= 0) {
 
-		// update deltaAngle
 		deltaAngle = (x - xOrigin) * 0.01f;
 
-		// update camera's direction
 		lx = sin(angle + deltaAngle);
 		lz = -cos(angle + deltaAngle);
 	}
@@ -419,15 +433,12 @@ void mouseMove(int x, int y) {
 
 void mouseButton(int button, int state, int x, int y) {
 
-	// only start motion if the left button is pressed
 	if (button == GLUT_LEFT_BUTTON) {
-
-		// when the button is released
 		if (state == GLUT_UP) {
 			angle += deltaAngle;
 			xOrigin = -1;
 		}
-		else {	// state = GLUT_DOWN
+		else {	
 			xOrigin = x;
 		}
 	}
@@ -435,14 +446,12 @@ void mouseButton(int button, int state, int x, int y) {
 
 int main(int argc, char** argv) {
 
-	// инициализация GLUT и создание окна
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_DEPTH | GLUT_DOUBLE | GLUT_RGBA);
 	glutInitWindowPosition(100, 100);
 	glutInitWindowSize(400, 400);
 	glutCreateWindow("Portal 3");
 	
-	// регистрация
 	glutDisplayFunc(renderScene);
 	glutReshapeFunc(changeSize);
 	glutIdleFunc(renderScene);
@@ -452,13 +461,12 @@ int main(int argc, char** argv) {
 	glutSpecialFunc(pressKey);
 	glutSpecialUpFunc(releaseKey);
 	
-	// регистрируем две новые функции
 	glutMouseFunc(mouseButton);
 	glutMotionFunc(mouseMove);
 
-	// OpenGL - инициализация функции теста
 	glEnable(GL_DEPTH_TEST);
-	
+	glutTimerFunc(30000, timer, 0);
+	std::cout << "You have 30 second...";
 	glutMainLoop();
 	
 	return 0;
